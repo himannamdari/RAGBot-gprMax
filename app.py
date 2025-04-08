@@ -18,7 +18,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Main title
-st.title("📡 GPRMax RAGBot")
+st.title("📡 GPRMax RAGBot: Demo version, Himan Namdari")
 st.markdown("### Your AI assistant for GPR simulations")
 
 # Sidebar with information
