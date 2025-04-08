@@ -47,7 +47,7 @@ with st.sidebar:
     for q in example_questions:
         if st.button(q):
             st.session_state["user_input"] = q
-            st.experimental_rerun()
+            st.rerun()  # Updated from experimental_rerun()
 
 # This is a demo version that simulates RAG behavior
 class DemoRAGEngine:
@@ -238,4 +238,4 @@ if "user_input" in st.session_state:
 user_input = st.chat_input("Ask me about gprMax...")
 if user_input:
     st.session_state.user_input = user_input
-    st.experimental_rerun()
+    st.rerun()  # Updated from experimental_rerun()
