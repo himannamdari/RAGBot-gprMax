@@ -7,6 +7,12 @@ from langchain_community.vectorstores import FAISS
 from langchain.prompts import PromptTemplate
 from langchain.chains import RetrievalQA
 
+
+os.environ["OPENAI_API_KEY"] = "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" 
+
+
+
+
 class GPRMaxRAGEngine:
     """Engine handling retrieval-augmented generation for gprMax queries."""
     
