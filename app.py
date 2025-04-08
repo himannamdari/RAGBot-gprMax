@@ -1,6 +1,7 @@
 import os
 import streamlit as st
 import logging
+import re
 
 # Page configuration must be the first Streamlit command
 st.set_page_config(
@@ -42,22 +43,25 @@ with st.sidebar:
         "How do I model a heterogeneous soil?",
         "Explain the PML absorbing boundary conditions",
         "How can I visualize my results?",
+        "Explain the Peplinski soil model",
+        "How do antenna models work in gprMax?",
+        "What are the steps to create a B-scan?",
     ]
     
     for q in example_questions:
         if st.button(q):
             st.session_state["user_input"] = q
-            st.rerun()  # Updated from experimental_rerun()
+            st.rerun()
 
-# This is a demo version that simulates RAG behavior
-class DemoRAGEngine:
-    """A demo RAG engine that returns pre-defined responses for demonstration purposes."""
+# This is an enhanced demo version that better simulates RAG behavior
+class EnhancedRAGEngine:
+    """A enhanced RAG engine that returns knowledge-based responses for demo purposes."""
     
     def __init__(self):
-        # Pre-defined responses for common questions
-        self.demo_responses = {
+        # Initialize knowledge base with content from gprMax documentation
+        self.knowledge_base = {
             "install": {
-                "response": """To install gprMax, follow these steps:
+                "content": """To install gprMax, follow these steps:
 
 1. Install Python, required Python packages, and get the gprMax source code from GitHub
 2. Install a C compiler which supports OpenMP
@@ -77,11 +81,13 @@ The recommended approach is using Miniconda:
   ```
   python setup.py build
   python setup.py install
-  ```""",
-                "sources": ["Section: Getting Started, Page: 4-7"]
+  ```
+
+For GPU acceleration, you'll need to install the NVIDIA CUDA Toolkit and the pycuda Python module.""",
+                "metadata": {"section": "Getting Started", "page": "4-7"}
             },
             "essential commands": {
-                "response": """The essential commands required to run any gprMax model are:
+                "content": """The essential commands required to run any gprMax model are:
 
 1. `#domain`: Specifies the size of the model (in meters), e.g., `#domain: 0.5 0.5 1.0`
 
@@ -90,10 +96,10 @@ The recommended approach is using Miniconda:
 3. `#time_window`: Specifies the total simulation time (in seconds), e.g., `#time_window: 20e-9`
 
 Without these commands, gprMax will terminate execution and issue an appropriate error message. All other commands (materials, object construction, sources, etc.) are optional but necessary for creating useful models.""",
-                "sources": ["Section: Input file commands, Page: 22"]
+                "metadata": {"section": "Input file commands", "page": "22"}
             },
             "heterogeneous soil": {
-                "response": """To model a heterogeneous soil in gprMax, you can use the `#fractal_box` command combined with a soil mixing model.
+                "content": """To model a heterogeneous soil in gprMax, you can use the `#fractal_box` command combined with a soil mixing model.
 
 First, define a soil mixing model using the Peplinski formula:
 ```
@@ -111,10 +117,10 @@ You can also add surface roughness with:
 ```
 #add_surface_roughness: 0 0 0.070 0.15 0.15 0.070 1.5 1 1 0.065 0.080 my_soil_box
 ```""",
-                "sources": ["Section: Advanced features, Page: 115-117"]
+                "metadata": {"section": "Advanced features", "page": "115-117"}
             },
-            "PML": {
-                "response": """The Perfectly Matched Layer (PML) is an absorbing boundary condition used in gprMax to simulate open boundary problems like GPR. 
+            "pml": {
+                "content": """The Perfectly Matched Layer (PML) is an absorbing boundary condition used in gprMax to simulate open boundary problems like GPR. 
 
 The PML absorbs waves impinging on the boundaries of the computational domain, preventing unwanted reflections. gprMax uses a PML based on a recursive integration approach to the complex frequency shifted (RIPML) formulation.
 
@@ -127,10 +133,10 @@ By default, gprMax uses 10 cells of PML on all six sides of the model domain. Yo
 This sets the PML thickness for each boundary (x0, y0, z0, xmax, ymax, zmax). You can set any thickness to zero to turn off the PML on that boundary.
 
 For advanced users, the `#pml_cfs` command allows customization of the PML parameters for better performance in specific applications.""",
-                "sources": ["Section: Absorbing boundary conditions, Page: 19-20", "Section: PML commands, Page: 41-42"]
+                "metadata": {"section": "Absorbing boundary conditions", "page": "19-20"}
             },
             "visualize results": {
-                "response": """To visualize results in gprMax, you have several options:
+                "content": """To visualize results in gprMax, you have several options:
 
 1. For A-scans (single traces), use the plot_Ascan.py module:
 ```
@@ -154,40 +160,162 @@ python -m tools.plot_Bscan outputfile rx-component
 ```
 python -m tools.plot_antenna_params outputfile
 ```""",
-                "sources": ["Section: Plotting, Page: 49-50", "Section: Output data, Page: 43-46"]
+                "metadata": {"section": "Plotting", "page": "49-50"}
+            },
+            "peplinski soil model": {
+                "content": """The Peplinski soil model in gprMax is a semi-empirical mixing model that describes the dielectric properties of soils. It was initially suggested by Dobson et al. and adapted by Peplinski, and is valid for frequencies in the range 0.3GHz to 1.3GHz.
+
+The model is implemented through the `#soil_peplinski` command with syntax:
+
+```
+#soil_peplinski: f1 f2 f3 f4 f5 f6 str1
+```
+
+Where:
+- f1 is the sand fraction (0-1)
+- f2 is the clay fraction (0-1)
+- f3 is the bulk density in g/cm³
+- f4 is the sand particle density in g/cm³
+- f5 and f6 define a range for volumetric water fraction
+- str1 is an identifier for the soil
+
+For example:
+```
+#soil_peplinski: 0.5 0.5 2.0 2.66 0.001 0.25 my_soil
+```
+
+The model relates relative permittivity of the soil to bulk density, sand particle density, sand fraction, clay fraction and water volumetric fraction. The real and imaginary parts of this semi-empirical model can be approximated using a multi-pole Debye function plus a conductive term.
+
+This approach is typically used with the `#fractal_box` command to create soils with more realistic dielectric and geometric properties.""",
+                "metadata": {"section": "Material commands", "page": "26-27"}
+            },
+            "antenna models": {
+                "content": """gprMax includes Python modules with pre-defined models of antennas that behave similarly to commercial antennas. Currently, models similar to GSSI 1.5 GHz, GSSI 400 MHz, and MALA 1.2 GHz antennas are included.
+
+To use an antenna model in your simulation, you can access it via Python scripting in your input file:
+
+```python
+#python:
+from user_libs.antennas.GSSI import antenna_like_GSSI_1500
+antenna_like_GSSI_1500(0.125, 0.094, 0.100, resolution=0.002)
+#end_python:
+```
+
+The antenna models are inserted at location x,y,z specified in the function. The coordinates are relative to the geometric center of the antenna in the x-y plane and the bottom of the antenna skid in the z direction.
+
+The models must be used with cubic spatial resolutions of either 0.5mm (GSSI 400MHz antenna only), 1mm (default), or 2mm by setting the optional resolution parameter.
+
+You can also rotate the antenna models 90 degrees counter-clockwise in the x-y plane by setting the optional rotate90=True parameter.""",
+                "metadata": {"section": "GPR antenna models", "page": "69-73"}
+            },
+            "b-scan": {
+                "content": """A B-scan is composed of multiple A-scans (traces) recorded as the source and receiver are moved over a target. To create a B-scan in gprMax, you need to:
+
+1. Create a model with source and receiver that can be moved between model runs:
+```
+#hertzian_dipole: z 0.040 0.170 0 my_ricker
+#rx: 0.080 0.170 0
+#src_steps: 0.002 0 0
+#rx_steps: 0.002 0 0
+```
+
+2. Use the -n command line option to specify the number of model runs (A-scans):
+```
+python -m gprMax user_models/my_bscan.in -n 60
+```
+
+3. After the simulation, merge the individual A-scan output files:
+```
+python -m tools.outputfiles_merge user_models/my_bscan
+```
+
+4. Visualize the B-scan:
+```
+python -m tools.plot_Bscan user_models/my_bscan_merged.out Ez
+```
+
+For more complex models, you can move the antenna using Python code in the input file with the current_model_run variable.""",
+                "metadata": {"section": "B-scan from a metal cylinder", "page": "104-105"}
+            },
+            "overview": {
+                "content": """gprMax is open source software that simulates electromagnetic wave propagation. It solves Maxwell's equations in 3D using the Finite-Difference Time-Domain (FDTD) method. gprMax was designed for modelling Ground Penetrating Radar (GPR) but can also be used to model electromagnetic wave propagation for many other applications.
+
+Key features include:
+1. Python scriptable input files
+2. Built-in library of antenna models
+3. Anisotropic material modelling
+4. Dispersive material modelling using multiple pole Debye, Lorentz or Drude formulations
+5. Building heterogeneous objects using fractal distributions
+6. Building objects with rough surfaces
+7. Modelling soils with realistic dielectric and geometric properties
+8. Improved PML (RIPML) performance
+9. OpenMP/MPI parallelization and GPU acceleration
+
+The software is principally written in Python with performance-critical parts written in Cython and CUDA.""",
+                "metadata": {"section": "Introduction", "page": "1-3"}
             }
         }
+        
+        # Add additional keywords for better matching
+        self.keyword_mapping = {
+            "installation": "install",
+            "installing": "install",
+            "setup": "install",
+            "command": "essential commands",
+            "soil": "heterogeneous soil",
+            "peplinski": "peplinski soil model",
+            "absorbing boundary": "pml",
+            "perfectly matched layer": "pml", 
+            "boundary condition": "pml",
+            "visualize": "visualize results",
+            "visualization": "visualize results",
+            "plot": "visualize results",
+            "antenna": "antenna models",
+            "gssi": "antenna models",
+            "mala": "antenna models",
+            "b-scan": "b-scan",
+            "bscan": "b-scan",
+            "multiple traces": "b-scan"
+        }
     
-    def generate_response(self, query):
-        """Generate a response based on the query."""
+    def search_knowledge_base(self, query):
+        """Search the knowledge base for relevant content based on the query."""
         query_lower = query.lower()
         
+        # Check for direct matches in knowledge base
+        for key in self.knowledge_base:
+            if key in query_lower:
+                return [self.knowledge_base[key]]
+        
         # Check for keyword matches
-        if "install" in query_lower:
-            return self.demo_responses["install"]["response"], [self.demo_responses["install"]["sources"]]
-        elif "essential" in query_lower or "command" in query_lower:
-            return self.demo_responses["essential commands"]["response"], [self.demo_responses["essential commands"]["sources"]]
-        elif "heterogeneous" in query_lower or "soil" in query_lower:
-            return self.demo_responses["heterogeneous soil"]["response"], [self.demo_responses["heterogeneous soil"]["sources"]]
-        elif "pml" in query_lower or "absorb" in query_lower or "boundary" in query_lower:
-            return self.demo_responses["PML"]["response"], [self.demo_responses["PML"]["sources"]]
-        elif "visual" in query_lower or "plot" in query_lower or "result" in query_lower:
-            return self.demo_responses["visualize results"]["response"], [self.demo_responses["visualize results"]["sources"]]
-        else:
-            # Default response for other queries
-            return """The gprMax documentation covers this topic in detail. Here are some key points about gprMax:
+        matches = []
+        for keyword, topic in self.keyword_mapping.items():
+            if keyword in query_lower and topic in self.knowledge_base:
+                matches.append(self.knowledge_base[topic])
+        
+        # If matches found, return them
+        if matches:
+            return matches
+        
+        # No matches, return overview
+        return [self.knowledge_base["overview"]]
+    
+    def generate_response(self, query):
+        """Generate a response based on the query by searching the knowledge base."""
+        # Search knowledge base
+        retrieved_docs = self.search_knowledge_base(query)
+        
+        # Get content and sources
+        content = "\n\n".join([doc["content"] for doc in retrieved_docs])
+        sources = [f"Section: {doc['metadata']['section']}, Page: {doc['metadata']['page']}" for doc in retrieved_docs]
+        
+        # Return response
+        return content, sources
 
-1. gprMax is open source software that simulates electromagnetic wave propagation for Ground Penetrating Radar (GPR) applications
-2. It solves Maxwell's equations in 3D using the Finite-Difference Time-Domain (FDTD) method
-3. The software allows building complex models with various materials, geometries, and sources
-4. It supports both CPU (OpenMP) and GPU (CUDA) parallelization
-
-Could you please try asking a more specific question about gprMax installation, commands, materials, object construction, or output visualization?""", ["Section: Introduction, Page: 1-3"]
-
-# Initialize the demo RAG engine
+# Initialize the RAG engine
 @st.cache_resource
-def initialize_demo_engine():
-    return DemoRAGEngine()
+def initialize_rag_engine():
+    return EnhancedRAGEngine()
 
 # Initialize chat history if not already present
 if "messages" not in st.session_state:
@@ -200,8 +328,8 @@ for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-# Initialize demo engine
-demo_engine = initialize_demo_engine()
+# Initialize rag engine
+rag_engine = initialize_rag_engine()
 
 # User input
 if "user_input" in st.session_state:
@@ -215,11 +343,11 @@ if "user_input" in st.session_state:
     with st.chat_message("user"):
         st.markdown(user_input)
     
-    # Generate response using demo engine
+    # Generate response using rag engine
     with st.chat_message("assistant"):
-        with st.spinner("Thinking..."):
+        with st.spinner("Searching documentation..."):
             response_container = st.empty()
-            response, sources = demo_engine.generate_response(user_input)
+            response, sources = rag_engine.generate_response(user_input)
             response_container.markdown(response)
             
             # If there are sources, display them
@@ -238,4 +366,4 @@ if "user_input" in st.session_state:
 user_input = st.chat_input("Ask me about gprMax...")
 if user_input:
     st.session_state.user_input = user_input
-    st.rerun()  # Updated from experimental_rerun()
+    st.rerun()
