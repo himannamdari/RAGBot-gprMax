@@ -2,9 +2,14 @@ import os
 import streamlit as st
 from dotenv import load_dotenv
 import logging
-import subprocess
 import time
-from rag_engine import GPRMaxRAGEngine
+
+# Page configuration must be the first Streamlit command
+st.set_page_config(
+    page_title="GPRMax RAGBot",
+    page_icon="📡",
+    layout="wide"
+)
 
 # Configure logging
 logging.basicConfig(
@@ -72,17 +77,16 @@ def check_and_prepare_data():
 # Initialize the RAG engine
 @st.cache_resource
 def initialize_rag_engine():
-    # Check if vector store exists
+    # Only try to initialize the engine if the vector store exists
     if os.path.exists("data/vector_db"):
-        return GPRMaxRAGEngine()
+        try:
+            from rag_engine import GPRMaxRAGEngine
+            return GPRMaxRAGEngine()
+        except Exception as e:
+            st.error(f"Failed to initialize RAG engine: {str(e)}")
+            logger.error(f"Failed to initialize RAG engine: {str(e)}")
+            return None
     return None
-
-# Page configuration
-st.set_page_config(
-    page_title="GPRMax RAGBot",
-    page_icon="📡",
-    layout="wide"
-)
 
 # Main title
 st.title("📡 GPRMax RAGBot")
