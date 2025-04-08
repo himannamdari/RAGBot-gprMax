@@ -5,7 +5,7 @@ import re
 
 # Page configuration must be the first Streamlit command
 st.set_page_config(
-    page_title="GPRMax RAGBot",
+    page_title="GPRMax RAGBot: Demo version, Himan Namdari",
     page_icon="📡",
     layout="wide"
 )
