@@ -9,3 +9,5 @@ python-dotenv>=1.0.0
 faiss-cpu>=1.7.4
 unstructured>=0.10.30
 tiktoken>=0.5.1
+streamlit>=1.29.0
+python-dotenv>=1.0.0
